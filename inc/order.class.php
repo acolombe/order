@@ -600,23 +600,6 @@ class PluginOrderOrder extends CommonDBTM {
       }
    }
 
-   public function post_updateItem($history = 1) {
-      global $DB;
-      $config = PluginOrderConfig::getConfig();
-
-      if ($config->fields['transmit_budget_change'] && in_array('budgets_id', $this->updates)) {
-         $infocom = new Infocom();
-         $query = "SELECT `items_id`, `itemtype`
-                   FROM `glpi_plugin_order_orders_items`
-                   WHERE `plugin_order_orders_id`='".$this->getID()."'";
-         foreach ($DB->request($query) as $infos) {
-            $infocom->getFromDBforDevice ($infos['itemtype'], $infos['items_id']);
-            $infocom->update(array('id' => $infocom->getID(),
-                                   'budgets_id' => $this->fields['budgets_id']));
-         }
-      }
-   }
-
    public function prepareInputForUpdate($input) {
       if ((isset($input['budgets_id']) && $input['budgets_id'] > 0)
             || (isset($input['budgets_id'])
@@ -991,12 +974,9 @@ class PluginOrderOrder extends CommonDBTM {
          ));
       } else {
          if ($this->fields['users_id']) {
-            $output = "";
-
-            if($user->getFromDB($this->fields['users_id'])) {
-               $output = formatUserName($this->fields['users_id'], $user->fields['name'],
-                                        $user->fields['realname'], $user->fields['firstname']);
-            }
+            $user->getFromDB($this->fields['users_id']);
+            $output = formatUserName($this->fields['users_id'], $user->fields['name'],
+                                     $user->fields['realname'], $user->fields['firstname']);
             echo $output;
          }
       }
@@ -1445,7 +1425,7 @@ class PluginOrderOrder extends CommonDBTM {
 
       if ($template) {
          $config = array('PATH_TO_TMP' => GLPI_DOC_DIR . '/_tmp');
-         $odf = new Odtphp\Odf(PLUGIN_ORDER_TEMPLATE_DIR."$template", $config);
+         $odf    = new odf(PLUGIN_ORDER_TEMPLATE_DIR."$template", $config);
          $this->getFromDB($ID);
 
          if(file_exists(PLUGIN_ORDER_TEMPLATE_CUSTOM_DIR . "custom.php")) {
@@ -1549,7 +1529,46 @@ class PluginOrderOrder extends CommonDBTM {
                $quantity = $PluginOrderOrder_Item->getTotalQuantityByRefAndDiscount($ID, $data["id"],
                                                                                    $data["price_taxfree"],
                                                                                    $data["discount"]);
+// ------------------------------------------------------------------------------------------------
+// Cheat until we get a real solution...
+               $toReplace = array('À', 'Á', 'Â', 'Ã', 'Ä', 'Å', 'Æ', 'Ç', 'È', 'É', 'Ê', 'Ë', 'Ì', 
+                                  'Í', 'Î', 'Ï', 'Ð', 'Ñ', 'Ò', 'Ó', 'Ô', 'Õ', 'Ö', 'Ø', 'Ù', 'Ú', 
+                                  'Û', 'Ü', 'Ý', 'ß', 'à', 'á', 'â', 'ã', 'ä', 'å', 'æ', 'ç', 'è', 
+                                  'é', 'ê', 'ë', 'ì', 'í', 'î', 'ï', 'ñ', 'ò', 'ó', 'ô', 'õ', 'ö', 
+                                  'ø', 'ù', 'ú', 'û', 'ü', 'ý', 'ÿ', 'Ā', 'ā', 'Ă', 'ă', 'Ą', 'ą', 
+                                  'Ć', 'ć', 'Ĉ', 'ĉ', 'Ċ', 'ċ', 'Č', 'č', 'Ď', 'ď', 'Đ', 'đ', 'Ē', 
+                                  'ē', 'Ĕ', 'ĕ', 'Ė', 'ė', 'Ę', 'ę', 'Ě', 'ě', 'Ĝ', 'ĝ', 'Ğ', 'ğ', 
+                                  'Ġ', 'ġ', 'Ģ', 'ģ', 'Ĥ', 'ĥ', 'Ħ', 'ħ', 'Ĩ', 'ĩ', 'Ī', 'ī', 'Ĭ', 
+                                  'ĭ', 'Į', 'į', 'İ', 'ı', 'Ĳ', 'ĳ', 'Ĵ', 'ĵ', 'Ķ', 'ķ', 'Ĺ', 'ĺ', 
+                                  'Ļ', 'ļ', 'Ľ', 'ľ', 'Ŀ', 'ŀ', 'Ł', 'ł', 'Ń', 'ń', 'Ņ', 'ņ', 'Ň', 
+                                  'ň', 'ŉ', 'Ō', 'ō', 'Ŏ', 'ŏ', 'Ő', 'ő', 'Œ', 'œ', 'Ŕ', 'ŕ', 'Ŗ', 
+                                  'ŗ', 'Ř', 'ř', 'Ś', 'ś', 'Ŝ', 'ŝ', 'Ş', 'ş', 'Š', 'š', 'Ţ', 'ţ', 
+                                  'Ť', 'ť', 'Ŧ', 'ŧ', 'Ũ', 'ũ', 'Ū', 'ū', 'Ŭ', 'ŭ', 'Ů', 'ů', 'Ű', 
+                                  'ű', 'Ų', 'ų', 'Ŵ', 'ŵ', 'Ŷ', 'ŷ', 'Ÿ', 'Ź', 'ź', 'Ż', 'ż', 'Ž', 
+                                  'ž', 'ſ', 'ƒ', 'Ơ', 'ơ', 'Ư', 'ư', 'Ǎ', 'ǎ', 'Ǐ', 'ǐ', 'Ǒ', 'ǒ', 
+                                  'Ǔ', 'ǔ', 'Ǖ', 'ǖ', 'Ǘ', 'ǘ', 'Ǚ', 'ǚ', 'Ǜ', 'ǜ', 'Ǻ', 'ǻ', 'Ǽ', 
+                                  'ǽ', 'Ǿ', 'ǿ');
 
+               $replaces = array('A', 'A', 'A', 'A', 'A', 'A', 'AE', 'C', 'E', 'E', 'E', 'E', 'I', 
+                                 'I', 'I', 'I', 'D', 'N', 'O', 'O', 'O', 'O', 'O', 'O', 'U', 'U', 
+                                 'U', 'U', 'Y', 's', 'a', 'a', 'a', 'a', 'a', 'a', 'ae', 'c', 'e', 
+                                 'e', 'e', 'e', 'i', 'i', 'i', 'i', 'n', 'o', 'o', 'o', 'o', 'o', 
+                                 'o', 'u', 'u', 'u', 'u', 'y', 'y', 'A', 'a', 'A', 'a', 'A', 'a', 
+                                 'C', 'c', 'C', 'c', 'C', 'c', 'C', 'c', 'D', 'd', 'D', 'd', 'E', 
+                                 'e', 'E', 'e', 'E', 'e', 'E', 'e', 'E', 'e', 'G', 'g', 'G', 'g', 
+                                 'G', 'g', 'G', 'g', 'H', 'h', 'H', 'h', 'I', 'i', 'I', 'i', 'I', 
+                                 'i', 'I', 'i', 'I', 'i', 'IJ', 'ij', 'J', 'j', 'K', 'k', 'L', 
+                                 'l', 'L', 'l', 'L', 'l', 'L', 'l', 'l', 'l', 'N', 'n', 'N', 'n', 
+                                 'N', 'n', 'n', 'O', 'o', 'O', 'o', 'O', 'o', 'OE', 'oe', 'R', 
+                                 'r', 'R', 'r', 'R', 'r', 'S', 's', 'S', 's', 'S', 's', 'S', 's', 
+                                 'T', 't', 'T', 't', 'T', 't', 'U', 'u', 'U', 'u', 'U', 'u', 'U', 
+                                 'u', 'U', 'u', 'U', 'u', 'W', 'w', 'Y', 'y', 'Y', 'Z', 'z', 'Z', 
+                                 'z', 'Z', 'z', 's', 'f', 'O', 'o', 'U', 'u', 'A', 'a', 'I', 'i', 
+                                 'O', 'o', 'U', 'u', 'U', 'u', 'U', 'u', 'U', 'u', 'U', 'u', 'A', 
+                                 'a', 'AE', 'ae', 'O', 'o');
+
+               $data['name'] = str_replace($toReplace, $replaces, $data['name']);
+// ------------------------------------------------------------------------------------------------
                $listeArticles[] = array(
                   'quantity'         => $quantity,
                   'ref'              => utf8_decode($data["name"]),
@@ -1699,9 +1718,7 @@ class PluginOrderOrder extends CommonDBTM {
          echo "<tr>";
          echo "<th style='width:15%;'>" . _n("Action", "Actions", 2) . "</th>";
          echo "<th>" . __("Name") . "</th>";
-         echo "<th>" . __("Order status", "order") . "</th>";
          echo "<th>" . __("Entity") . "</th>";
-         echo "<th>" . __("Price tax free", "order") . "</th>";
          echo "<th>" . __("Price ATI", "order") . "</th>";
          echo "</tr>";
 
@@ -1732,16 +1749,7 @@ class PluginOrderOrder extends CommonDBTM {
             echo "</td>";
 
             echo "<td>";
-            echo Dropdown::getDropdownName(getTableForItemType('PluginOrderOrderState'),
-                                             $data["plugin_order_orderstates_id"]);
-            echo "</td>";
-
-            echo "<td>";
             echo Dropdown::getDropdownName("glpi_entities",$data["entities_id"]);
-            echo "</td>";
-
-            echo "<td>";
-            echo Html::formatNumber($prices["priceHT"]);
             echo "</td>";
 
             echo "<td>";
@@ -1823,10 +1831,7 @@ class PluginOrderOrder extends CommonDBTM {
 
       // Get BUDGET
       $budget = new Budget();
-      if (!$budget->getFromDB($this->fields['budgets_id'])) {
-         return false;
-      }
-      Toolbox::logDebug($budget);
+      $budget->getFromDB($this->fields['budgets_id']);
       if ($budget->fields['value'] == 0) {
          return PluginOrderOrder::ORDER_IS_UNDER_BUDGET;
       }
@@ -1849,7 +1854,6 @@ class PluginOrderOrder extends CommonDBTM {
    }
 
    public function displayAlertOverBudget($type) {
-      $message = "";
       switch($type) {
          case PluginOrderOrder::ORDER_IS_OVER_BUDGET :
             $message = "<h3><span class='red'>"
@@ -2003,7 +2007,6 @@ class PluginOrderOrder extends CommonDBTM {
             $order = new self();
             $order->getFromDB($document_item->fields['items_id']);
             $extension = explode('.',$document->fields['filename']);
-            $tag="";
             if (!empty($documentCategory->fields['documentcategories_prefix'])) {
                $tag = $documentCategory->fields['documentcategories_prefix']."-";
             }
