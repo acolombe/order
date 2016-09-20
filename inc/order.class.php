@@ -1714,7 +1714,10 @@ class PluginOrderOrder extends CommonDBTM {
                $PluginOrderOrder_Item->getPricesATI($data["port_price"],
                                                     Dropdown::getDropdownName("glpi_plugin_order_ordertaxes",
                                                                               $data["plugin_order_ordertaxes_id"]));
-            $total +=  $prices["priceTTC"] + $postagewithTVA;
+            // If order isn't canceled nor deleted
+            if ($data['plugin_order_orderstates_id'] < 5) {
+               $total +=  $prices["priceHT"];
+            }
             $link   = Toolbox::getItemTypeFormURL(__CLASS__);
 
             echo "<tr class='tab_bg_1' align='center'>";
